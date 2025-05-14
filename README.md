@@ -2,7 +2,8 @@
 
 **WAvideo** is a sleek, self-hosted web application for converting video and audio files into WhatsApp-friendly formats, GIFs, and audio-only versions. It also includes YouTube ripping functionality, real-time progress tracking, and preset profiles.
 
-![screenshot](screenshot.png) <!-- Optional screenshot -->
+<img width="740" alt="image" src="https://github.com/user-attachments/assets/a2b04fa1-8a16-40c5-8e7a-ea860ac4bb95" />
+
 
 ## 🚀 Features
 

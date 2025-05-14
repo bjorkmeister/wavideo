@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>WAvideo</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f7f9fc;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+      padding: 2rem;
+    }
+    .container {
+      max-width: 800px;
+      width: 100%;
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+    .drop-area {
+      border: 2px dashed #4CAF50;
+      padding: 2rem;
+      border-radius: 10px;
+      background: #f0fdf4;
+      cursor: pointer;
+      margin-top: 1rem;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+    .drop-area.hover {
+      background: #e6f7eb;
+    }
+    input[type="file"] {
+      display: none;
+    }
+    #downloadBtn {
+      background: #007bff;
+      color: white;
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      display: none;
+      margin-top: 1rem;
+    }
+    video {
+      display: none;
+      margin-top: 1rem;
+      max-width: 100%;
+    }
+    .dark-mode {
+      background-color: #121212;
+      color: #f0f0f0;
+    }
+    .dark-mode .container {
+      background-color: #1e1e1e;
+      box-shadow: none;
+    }
+    #qrContainer img {
+      border-radius: 8px;
+      margin-top: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container" id="mainContainer">
+  <h1>WAvideo</h1>
+  <p>Drop a video to convert it for WhatsApp, audio-only, or as a GIF.</p>
+  <p id="localInfo"></p>
+  <div id="qrContainer"></div>
+
+  <div style="margin-top:1rem;">
+    <label><input type="checkbox" id="darkModeToggle"> Dark Mode</label>
+    <br/>
+    <label><input type="checkbox" id="audioOnly"> Audio Only</label>
+  </div>
+
+  <div style="margin-top: 1rem;">
+    <label for="presetProfile">Preset Profile:</label>
+    <select id="presetProfile" style="margin-left: 0.5rem;">
+      <option value="">—</option>
+      <option value="whatsapp">WhatsApp (480p max, MP4, 500kbps)</option>
+      <option value="instagram">Instagram Reel (720p, MP4, 2Mbps)</option>
+      <option value="audio_only">Audio Extract (MP3, 192kbps)</option>
+      <option value="gif">GIF (10fps, 320px wide)</option>
+    </select>
+  </div>
+
+  <div style="margin-top:1rem;">
+    <select id="formatSelect">
+      <option value="mp4">MP4</option>
+      <option value="mp3">MP3</option>
+      <option value="aac">AAC</option>
+      <option value="ogg">OGG</option>
+      <option value="wav">WAV</option>
+      <option value="flac">FLAC</option>
+    </select>
+    <select id="bitrateSelect">
+      <option value="128k">128 kbps</option>
+      <option value="192k" selected>192 kbps</option>
+      <option value="256k">256 kbps</option>
+      <option value="320k">320 kbps</option>
+    </select>
+  </div>
+
+  <div style="margin-top:1rem;">
+    <label><input type="checkbox" id="extractSubtitles"> Extract Subtitles</label>
+    <label><input type="checkbox" id="makeGif"> Convert to GIF</label>
+    <br/>
+    Trim: Start <input type="text" id="trimStart" placeholder="00:00:00" style="width:6rem;">
+    End <input type="text" id="trimEnd" placeholder="00:00:05" style="width:6rem;">
+  </div>
+
+  <div style="margin-top:1rem;">
+    Output Name: <input type="text" id="customFilename" placeholder="optional filename">
+  </div>
+
+  <div style="margin-top:1rem;">
+    <label for="youtubeURL">Rip from YouTube:</label>
+    <input type="text" id="youtubeURL" placeholder="Paste YouTube URL here" style="width: 70%; padding: 0.4rem; margin-left: 0.5rem;">
+    <button id="ripBtn" style="margin-left: 0.5rem; background-color: #e53935; color: white; border: none; padding: 0.5rem 1rem; border-radius: 5px; cursor: pointer;">Download</button>
+    <div style="margin-top:0.5rem;">
+      <label><input type="checkbox" id="convertAfterRip" /> Auto-convert after download</label>
+    </div>
+  </div>
+
+  <div class="drop-area" id="dropArea">
+    <p>Drag & drop or click to upload a file</p>
+    <input type="file" id="videoFile" name="video" multiple>
+  </div>
+  <div id="progressContainer" style="width: 100%; margin-top: 1rem; display: none;">
+    <div style="background: #e0e0e0; border-radius: 8px; overflow: hidden; height: 20px;">
+      <div id="progressFill" style="height: 100%; width: 0%; background: linear-gradient(to right, #4caf50, #81c784); transition: width 0.3s;"></div>
+    </div>
+    <div id="progressDetails" style="margin-top: 0.5rem; font-size: 0.9rem; color: #555;">
+      <div id="progressStep">⏳ Preparing...</div>
+      <div>
+        ⏱️ Elapsed: <span id="elapsedTime">0s</span> |
+        ⏳ ETA: <span id="etaTime">--</span>
+      </div>
+    </div>
+  </div>
+  <button id="convertBtn" disabled style="margin-top: 1rem; background-color: #4CAF50; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer;">Start Conversion</button>
+
+  <div id="status"></div>
+  <video id="preview" controls></video>
+  <a id="downloadBtn">Download</a>
+  <pre id="fileStats" style="margin-top:1rem; white-space:pre-wrap;"></pre>
+  <button onclick="resetUI()" style="margin-top: 1rem; background-color: #f44336; color: white; border: none; padding: 0.5rem 1rem; border-radius: 5px; cursor: pointer;">Reset</button>
+</div>
+
+<script>
+const dropArea = document.getElementById('dropArea');
+const fileInput = document.getElementById('videoFile');
+const statusText = document.getElementById('status');
+const preview = document.getElementById('preview');
+const downloadBtn = document.getElementById('downloadBtn');
+const convertBtn = document.getElementById('convertBtn');
+
+let selectedFile = null;
+
+dropArea.addEventListener('click', () => fileInput.click());
+['dragenter', 'dragover'].forEach(evt =>
+  dropArea.addEventListener(evt, e => {
+    e.preventDefault(); dropArea.classList.add('hover');
+  }));
+['dragleave', 'drop'].forEach(evt =>
+  dropArea.addEventListener(evt, e => {
+    e.preventDefault(); dropArea.classList.remove('hover');
+  }));
+
+dropArea.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
+fileInput.addEventListener('change', () => handleFiles(fileInput.files));
+
+function handleFiles(files) {
+  if (files.length > 0) {
+    selectedFile = files[0];
+    document.getElementById('convertBtn').disabled = false;
+    statusText.textContent = `Selected: ${selectedFile.name}`;
+  }
+}
+
+convertBtn.addEventListener('click', () => {
+  if (selectedFile) {
+    uploadFile(selectedFile);
+  }
+});
+
+async function uploadFile(file) {
+  const startTime = Date.now();
+  let lastProgress = 0;
+
+  statusText.textContent = 'Uploading...';
+  document.getElementById('progressContainer').style.display = 'block';
+  document.getElementById('progressFill').style.width = '0%';
+  document.getElementById('progressStep').textContent = '⏳ Uploading file...';
+  document.getElementById('elapsedTime').textContent = '0s';
+  document.getElementById('etaTime').textContent = '--';
+
+  const formData = new FormData();
+  formData.append('video', file);
+  formData.append('audioOnly', document.getElementById('audioOnly').checked);
+  formData.append('format', document.getElementById('formatSelect').value);
+  formData.append('bitrate', document.getElementById('bitrateSelect').value);
+  formData.append('extractSubtitles', document.getElementById('extractSubtitles').checked);
+  formData.append('makeGif', document.getElementById('makeGif').checked);
+  formData.append('trimStart', document.getElementById('trimStart').value);
+  formData.append('trimEnd', document.getElementById('trimEnd').value);
+  formData.append('customFilename', document.getElementById('customFilename').value);
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/convert');
+  xhr.upload.onprogress = (e) => {
+    if (e.lengthComputable) {
+      const percent = (e.loaded / e.total) * 100;
+      document.getElementById('progressFill').style.width = percent.toFixed(1) + '%';
+
+      const now = Date.now();
+      const elapsed = Math.round((now - startTime) / 1000);
+      document.getElementById('elapsedTime').textContent = `${elapsed}s`;
+
+      if (percent > 0) {
+        const estimatedTotal = elapsed / (percent / 100);
+        const eta = Math.round(estimatedTotal - elapsed);
+        document.getElementById('etaTime').textContent = `${eta}s`;
+      }
+    }
+  };
+  xhr.onload = async () => {
+    if (xhr.status === 200) {
+      document.getElementById('progressStep').textContent = '✅ Conversion complete.';
+      document.getElementById('etaTime').textContent = '0s';
+      const stats = JSON.parse(xhr.responseText);
+      const ext = stats.format || 'converted';
+      const filePath = `/converted/${stats.filename}`;
+      const downloadUrl = filePath;
+
+      preview.src = '';
+      preview.style.display = 'none';
+      const fileStatsElem = document.getElementById('fileStats');
+      fileStatsElem.innerHTML = '';
+
+      if (ext === 'mp4') {
+        preview.src = downloadUrl;
+        preview.style.display = 'block';
+      } else if (ext === 'gif') {
+        const gifImg = document.createElement('img');
+        gifImg.src = downloadUrl;
+        gifImg.alt = 'Converted GIF';
+        gifImg.style.maxWidth = '100%';
+        gifImg.style.marginTop = '1rem';
+        fileStatsElem.appendChild(gifImg);
+      }
+
+      downloadBtn.href = downloadUrl;
+      downloadBtn.download = stats.filename;
+      downloadBtn.style.display = 'inline-block';
+      statusText.textContent = '✅ Conversion complete!';
+
+      let readableSize = (stats.size / 1024).toFixed(1) + ' KB';
+      const dimensions = stats.width && stats.height ? `${stats.width}x${stats.height}` : '—';
+      fileStatsElem.prepend(document.createTextNode(
+        `📄 File: ${stats.filename}\n🧬 Codec: ${stats.codec_name || '—'}\n📐 Dimensions: ${dimensions}\n💾 Size: ${readableSize}\n\n`
+      ));
+
+      if (Array.isArray(stats.thumbnails)) {
+        stats.thumbnails.forEach(url => {
+          const thumbImg = document.createElement('img');
+          thumbImg.src = url;
+          thumbImg.alt = 'Thumbnail';
+          thumbImg.style.maxWidth = '32%';
+          thumbImg.style.margin = '0.5%';
+          fileStatsElem.appendChild(thumbImg);
+        });
+      }
+
+      if (stats.overwritten) {
+        alert(`⚠️ File "${stats.filename}" was overwritten.`);
+      }
+    } else {
+      document.getElementById('progressStep').textContent = '❌ Upload or conversion failed.';
+      document.getElementById('etaTime').textContent = '--';
+      statusText.textContent = '❌ Conversion failed.';
+    }
+  };
+  xhr.send(formData);
+}
+
+function resetUI() {
+  preview.src = '';
+  preview.style.display = 'none';
+  downloadBtn.style.display = 'none';
+  statusText.textContent = '';
+  document.getElementById('fileStats').textContent = '';
+  fileInput.value = '';
+  selectedFile = null;
+  convertBtn.disabled = true;
+  document.getElementById('progressContainer').style.display = 'none';
+  document.getElementById('progressFill').style.width = '0%';
+  document.getElementById('progressStep').textContent = '';
+  document.getElementById('elapsedTime').textContent = '0s';
+  document.getElementById('etaTime').textContent = '--';
+}
+
+// Dark mode
+const toggle = document.getElementById('darkModeToggle');
+toggle.addEventListener('change', () => {
+  document.body.classList.toggle('dark-mode', toggle.checked);
+});
+
+// Preset profile selector logic
+document.getElementById('presetProfile').addEventListener('change', (e) => {
+  const formatSelect = document.getElementById('formatSelect');
+  const bitrateSelect = document.getElementById('bitrateSelect');
+  const audioOnly = document.getElementById('audioOnly');
+  const makeGif = document.getElementById('makeGif');
+  const extractSubtitles = document.getElementById('extractSubtitles');
+
+  switch (e.target.value) {
+    case 'whatsapp':
+      formatSelect.value = 'mp4';
+      bitrateSelect.value = '256k';
+      audioOnly.checked = false;
+      makeGif.checked = false;
+      extractSubtitles.checked = false;
+      break;
+    case 'instagram':
+      formatSelect.value = 'mp4';
+      bitrateSelect.value = '320k';
+      audioOnly.checked = false;
+      makeGif.checked = false;
+      extractSubtitles.checked = false;
+      break;
+    case 'audio_only':
+      formatSelect.value = 'mp3';
+      bitrateSelect.value = '192k';
+      audioOnly.checked = true;
+      makeGif.checked = false;
+      extractSubtitles.checked = false;
+      break;
+    case 'gif':
+      formatSelect.value = 'mp4';
+      bitrateSelect.value = '128k';
+      audioOnly.checked = false;
+      makeGif.checked = true;
+      extractSubtitles.checked = false;
+      break;
+    default:
+      break;
+  }
+});
+
+// QR and local IP fetch
+fetch('/local-ip')
+  .then(res => res.json())
+  .then(data => {
+    const fullURL = `http://${data.ip}:5051`;
+    document.getElementById('localInfo').innerText = `Local access: ${fullURL}`;
+    const qr = document.createElement('img');
+    qr.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(fullURL)}`;
+    document.getElementById('qrContainer').appendChild(qr);
+  });
+// YouTube rip logic
+document.getElementById('ripBtn').addEventListener('click', async () => {
+  const url = document.getElementById('youtubeURL').value.trim();
+  if (!url) {
+    alert('Please enter a YouTube URL.');
+    return;
+  }
+
+  const autoConvert = document.getElementById('convertAfterRip').checked;
+
+  statusText.textContent = '🔄 Downloading from YouTube...';
+  document.getElementById('progressContainer').style.display = 'block';
+  document.getElementById('progressFill').style.width = '0%';
+  document.getElementById('progressStep').textContent = '⏳ Downloading YouTube video...';
+  document.getElementById('elapsedTime').textContent = '0s';
+  document.getElementById('etaTime').textContent = '--';
+
+  const res = await fetch('/rip-youtube', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url, autoConvert })
+  });
+
+  document.getElementById('progressContainer').style.display = 'none';
+
+  if (res.ok) {
+    const data = await res.json();
+    alert(`✅ YouTube video downloaded as ${data.filename}`);
+    statusText.textContent = '✅ Downloaded. You can now convert it.';
+    // Optional: auto-fill file input or show it as selected?
+  } else {
+    const msg = await res.text();
+    statusText.textContent = '❌ Failed to download from YouTube.';
+    alert(`Error: ${msg}`);
+  }
+});
+</script>
+</body>
+</html>
